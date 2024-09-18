@@ -1,0 +1,3 @@
+Al crear un CourierTask, hace una comunicación con el microservicio de Payment(CreateBill Endpoint), hay una condición que crea un bill con IsComplete = true, lo cual genera un evento,
+que es BillPaidEvent, ese evento ejecuta un Endpoint del microservicio de Delivery(markaspaid), en ese endpoint va y intenta traer el couriertask, pero como aun no ah retornado el flujo y 
+no se ah insertado, hace un return y dapr lo toma como un Exception.

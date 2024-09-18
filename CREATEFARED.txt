@@ -1,0 +1,16 @@
+FARE VALID: ORIGIN 5TO ANILLO LA CUCHILLA AV JERUSALEN, DESTINATION AV, SAN MARTIN SANTA CRUZ TELIS.
+
+{
+  "originLatitude": "-17.830227",
+  "originLongitude": "-63.200831",
+  "destinationLatitude": "-17.769327",
+  "destinationLongitude": "-63.192721"
+}
+
+MALLLLLL
+{
+  "originLatitude": "48.1457",
+  "originLongitude": "78.125",
+  "destinationLatitude": "-45.62",
+  "destinationLongitude": "145.562"
+}
