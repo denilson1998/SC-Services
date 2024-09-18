@@ -1,0 +1,6 @@
+COMPOSE_PROJECT_NAME=peto
+SA_PASSWORD=Pass@word
+ASPNETCORE_ENVIRONMENT=Development
+PARAMETERS_DB_CONNECTION=Server=sqldata,1433;Database=PetoParameters;User Id=sa;Password=Pass@word;TrustServerCertificate=true
+Payments_DB_CONNECTION=Server=sqldata,1433;Database=PaymentsDb;User ID=sa;Password=Pass@word;TrustServerCertificate=True
+BILLING_DB_CONNECTION=Server=sqldata,1433;Database=PetoBilling;User ID=sa;Password=Pass@word;TrustServerCertificate=True

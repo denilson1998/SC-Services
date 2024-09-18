@@ -1,0 +1,54 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: "#{{Namespace}}#"
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: peto-np-apidelivery
+  namespace: "#{{Namespace}}#"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: apidelivery-deployment
+      app.kubernetes.io/component: apidelivery
+  policyTypes:
+  - Ingress
+  ingress:
+  - from: 
+    - ipBlock:
+        cidr: 0.0.0.0/0
+    ports:
+    - protocol: TCP
+      port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: peto-np-apipayments
+  namespace: "#{{Namespace}}#"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: apipayments-deployment
+      app.kubernetes.io/component: apipayments
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from: 
+    - ipBlock:
+        cidr: 0.0.0.0/0
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+    - {}
+---

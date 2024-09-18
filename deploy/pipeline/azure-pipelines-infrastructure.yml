@@ -1,0 +1,103 @@
+trigger:
+  branches:
+    include:
+      - refs/heads/dev
+      - refs/heads/main
+  paths:
+    include:
+      - deploy
+
+variables:
+  - name: templateFile
+    value: 'deploy/bicep/main.bicep'
+  
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+  - stage: Build
+    pool:
+      vmImage: ubuntu-latest
+    jobs:
+      - job: compile
+        variables:
+          buildConfiguration: 'Release'
+        steps:
+          
+          - task: PublishPipelineArtifact@1
+            displayName: Publish deploy files
+            inputs:
+              targetPath: deploy
+              artifactName: deploy
+
+  - stage: Dev
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/dev'))
+    dependsOn: Build
+    variables:
+    - group: Peto-BackEnd-Dev
+    - group: Peto-BackEnd-Dev-Secrets
+    jobs:
+      - job: ARM
+        pool:
+          vmImage: ubuntu-20.04
+        steps:
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Build Artifacts'
+            inputs:
+              artifact: deploy
+              path: $(Agent.TempDirectory)/deploy
+
+          - task: FileTransform@1
+            inputs:
+              folderPath: '$(Agent.TempDirectory)/deploy/bicep'
+              fileType: json
+              targetFiles: 'main.parameters.dev.json'
+              
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: 'SitecDev'
+              scriptType: 'pscore'
+              scriptLocation: 'scriptPath'
+              scriptPath: '$(Agent.TempDirectory)/deploy/script/deploy.ps1'
+              arguments:
+                -templateFile $(templateFile) `
+                -sqlAdministratorPassword $(sqlAdministratorPassword) `
+                -azureAdSecret $(AzureADSecret) `
+                -resourceGroupName $(resourceGroup) `
+                -paramfile  "@$(Agent.TempDirectory)/deploy/bicep/main.parameters.dev.json" `
+
+  # - stage: Prod
+  #   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  #   dependsOn: Build
+  #   variables:
+  #   - group: Peto-BackEnd-Prod
+  #   - group: Peto-BackEnd-Secrets-Prod
+  #   jobs:
+  #     - job: ARM
+  #       pool:
+  #         vmImage: ubuntu-latest
+  #       steps:
+  #         - task: DownloadPipelineArtifact@2
+  #           displayName: 'Download Build Artifacts'
+  #           inputs:
+  #             artifact: deploy
+  #             path: $(Agent.TempDirectory)/deploy
+
+  #         - task: FileTransform@1
+  #           inputs:
+  #             folderPath: '$(Agent.TempDirectory)/deploy/bicep'
+  #             fileType: json
+  #             targetFiles: 'main.parameters.prod.json'
+              
+  #         - task: AzureCLI@2
+  #           inputs:
+  #             azureSubscription: 'SitecProd'
+  #             scriptType: 'pscore'
+  #             scriptLocation: 'scriptPath'
+  #             scriptPath: '$(Agent.TempDirectory)/deploy/script/deploy.ps1'
+  #             arguments:
+  #               -templateFile $(templateFile) `               
+  #               -sqlAdministratorPassword $(sqlAdministratorPassword) `
+  #               -azureAdSecret $(AzureADSecret) `           
+  #               -resourceGroupName $(resourceGroup) `
+  #               -paramfile  "@$(Agent.TempDirectory)/deploy/bicep/main.parameters.prod.json" 

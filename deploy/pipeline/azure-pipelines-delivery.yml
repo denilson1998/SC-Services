@@ -1,0 +1,359 @@
+trigger:
+  branches:
+    include:
+      - refs/heads/dev 
+      - refs/heads/main
+  paths:
+    include:
+      - Delivery
+      - deploy/kubernetes/deployment-delivery.yml
+      - deploy/kubernetes/ingress.yml
+      - deploy/kubernetes/configMap.yml
+      - deploy/kubernetes/secrets.yml
+      - deploy/pipeline/azure-pipelines-delivery.yml
+stages:
+  - stage: Build
+    pool:
+      vmImage: ubuntu-20.04
+    jobs:
+      - job: compile
+        variables:
+          buildConfiguration: "Release"
+        steps:
+          - task: UseDotNet@2
+            displayName: "Use .NET Core sdk"
+            inputs:
+              packageType: "sdk"
+              version: "6.0.x"
+              includePreviewVersions: true
+
+          - task: DotNetCoreCLI@2
+            displayName: "Restore"
+            inputs:
+              command: "restore"
+              arguments: "--no-cache -f"
+              projects: "Delivery/Delivery.Api/Delivery.Api.csproj"
+              includeNuGetOrg: true
+          
+          # - task: SonarCloudPrepare@1
+          #   inputs:
+          #     SonarCloud: SonarCloud
+          #     organization: scfg
+          #     projectKey: "ERP-Delivery"
+          #     projectName: ERP-Delivery
+
+          - task: DotNetCoreCLI@2
+            displayName: "Build"
+            inputs:
+              arguments: "--configuration $(buildConfiguration)"
+              projects: "Delivery/Delivery.Api/Delivery.Api.csproj"
+          
+          # - task: SonarCloudAnalyze@1
+          #   displayName: Run Code Analysis
+            
+          # - task: HCLAppScanOnCloud@2
+          #   inputs:
+          #     AppSecTestService: 'HCL CloudScan'
+          #     applications: '223626bc-f5b6-40c7-940b-2aab31465120'
+          #     scanname: 'HCL scan peto-backend'
+          #     scantype: 'static'
+          
+          - task: DotNetCoreCLI@2
+            displayName: "Publish"
+            inputs:
+              command: "publish"
+              projects: "Delivery/Delivery.Api/Delivery.Api.csproj"
+              arguments: --configuration $(BuildConfiguration) --output Delivery/Delivery.Api/app/publish
+              modifyOutputPath: false
+              publishWebProjects: false
+              zipAfterPublish: false
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish deploy files
+            inputs:
+              targetPath: deploy
+              artifactName: deploy
+
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: Delivery/Delivery.Api/app/publish
+              artifactName: CompileArtifact
+
+      - job: migrations
+        dependsOn: compile
+        pool:
+          vmImage: 'ubuntu-20.04'
+        variables:
+          buildConfiguration: "Release"
+        steps:
+          - task: UseDotNet@2
+            displayName: "Use .NET Core sdk"
+            inputs:
+              packageType: "sdk"
+              version: "6.0.x"
+              includePreviewVersions: true
+
+          - task: DotNetCoreCLI@2
+            displayName: "Install EF Core"
+            inputs:
+              command: custom
+              custom: 'tool'
+              arguments: "install --global dotnet-ef --version 6.0.*"
+
+          - task: DotNetCoreCLI@2
+            displayName: "Generate sql script"
+            inputs:
+              command: "custom"
+              custom: "ef"
+              arguments: "migrations script --output $(Build.SourcesDirectory)/Migrations/migrations.sql --project $(Build.SourcesDirectory)/Delivery/Delivery.Infrastructure/Delivery.Infrastructure.csproj --startup-project $(Build.SourcesDirectory)/Delivery/Delivery.Api/Delivery.Api.csproj --context Delivery.Infrastructure.Persistence.ApplicationDbContext -i"
+          
+          - task: PublishPipelineArtifact@1
+            displayName: Publish sql script
+            inputs:
+              targetPath: Migrations
+              artifactName: migrationsArtifact
+
+      - job: docker
+        condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+        dependsOn: migrations
+        steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              artifact: CompileArtifact
+              path: Delivery/Delivery.Api/app/publish
+
+          - task: DockerInstaller@0
+            inputs:
+              dockerVersion: "17.09.0-ce"
+
+          - task: Docker@2
+            condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/dev'))
+            displayName: Docker Build
+            inputs:
+              containerRegistry: "SitecDev"
+              repository: "scservices/delivery/api"
+              command: "build"
+              Dockerfile: "$(Build.SourcesDirectory)/Delivery/Delivery.Api/Dockerfile"
+              buildContext: "$(Build.SourcesDirectory)/Delivery/Delivery.Api/"
+              tags: |
+                $(Build.SourceBranchName)-latest
+                $(Build.SourceBranchName)-$(Build.BuildId)
+
+          - task: Docker@2
+            condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/dev'))
+            displayName: Docker Push
+            inputs:
+              containerRegistry: "SitecDev"
+              repository: "scservices/delivery/api"
+              command: "push"
+              tags: |
+                $(Build.SourceBranchName)-latest
+                $(Build.SourceBranchName)-$(Build.BuildId)
+          
+          - task: Docker@2
+            condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+            displayName: Docker Build
+            inputs:
+              containerRegistry: "SitecProd"
+              repository: "scservices/delivery/api"
+              command: "build"
+              Dockerfile: "$(Build.SourcesDirectory)/Delivery/Delivery.Api/Dockerfile"
+              buildContext: "$(Build.SourcesDirectory)/Delivery/Delivery.Api/"
+              tags: |
+                $(Build.SourceBranchName)-latest
+                $(Build.SourceBranchName)-$(Build.BuildId)
+
+          - task: Docker@2
+            condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+            displayName: Docker Push
+            inputs:
+              containerRegistry: "SitecProd"
+              repository: "scservices/delivery/api"
+              command: "push"
+              tags: |
+                $(Build.SourceBranchName)-latest
+                $(Build.SourceBranchName)-$(Build.BuildId)
+      
+      # - job: unit_tests
+      #   dependsOn: docker
+      #   variables:
+      #     buildConfiguration: "Release"
+      #   steps:
+      #     - task: DotNetCoreCLI@2
+      #       displayName: "ALL-Test"
+      #       inputs:
+      #         command: test
+      #         projects: |
+      #           tests/Delivery.IntegrationTests/*.csproj
+      #           tests/Delivery.UnitTests/*.csproj
+      #           tests/Delivery.FunctionalTests/*.csproj
+      #         arguments: "--configuration $(buildConfiguration)"
+      #         publishTestResults: true
+  
+  - stage: Dev
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/dev'))
+    dependsOn: Build
+    variables:
+      - group: Cluster-Dev
+      - group: Peto-BackEnd-Config-Dev
+      - group: Peto-BackEnd-Secrets-Dev
+      - group: Peto-BackEnd-Constr-Dev
+    jobs:
+      - deployment: Prepare
+        environment:
+          name: 'AKS Dev'
+          resourceType: "VirtualMachine"
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: DownloadPipelineArtifact@2
+                  displayName: "Download Migration Artifacts"
+                  inputs:
+                    artifact: MigrationsArtifact
+                    path: $(System.ArtifactsDirectory)/migrations
+                - task: Bash@3
+                  displayName: "Make persisten grant migrations"
+                  inputs:
+                    targetType: inline
+                    script: "sqlcmd -S $(dbserver) -d $(dbnamedelivery) -U $(dbuser) -P '$(dbpassword)' -i $(System.ArtifactsDirectory)/migrations/migrations.sql -I"
+                    failOnStderr: true
+      - deployment: AKSDev
+        dependsOn: Prepare
+        environment: 
+          name: 'AKS Dev'
+          resourceType: 'VirtualMachine'
+        variables:
+          - group: AKS-DEV 
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: DownloadPipelineArtifact@2
+                  displayName: 'Download Build Artifacts'
+                  inputs:
+                    artifact: deploy
+                    path: $(System.ArtifactsDirectory)
+
+                - task: qetza.replacetokens.replacetokens-task.replacetokens@3
+                  displayName: 'Replace tokens in **/deply/kube'
+                  inputs:
+                    targetFiles: |
+                      $(System.ArtifactsDirectory)/kubernetes/configMap.yml
+                      $(System.ArtifactsDirectory)/kubernetes/secrets.yml
+                      $(System.ArtifactsDirectory)/kubernetes/deployment-delivery.yml
+                      $(System.ArtifactsDirectory)/kubernetes/scaler.yml
+                      $(System.ArtifactsDirectory)/kubernetes/networkPolicy.yml
+                      $(System.ArtifactsDirectory)/kubernetes/services.yml
+                      $(System.ArtifactsDirectory)/kubernetes/ingress.yml 
+                    actionOnMissing: 'warn'
+                    tokenPrefix: '#{{'
+                    tokenSuffix: '}}#'
+
+                - task: Bash@3
+                  inputs:
+                    targetType: 'inline'
+                    script: | 
+                      az login --service-principal -u $(SP-USER) -p $(SP-PASS) -t $(SP-TENANT)
+                      az aks get-credentials --resource-group $(AKS-RG) --name $(AKS-NAME) --overwrite-existing --file .kubeconfig-x
+                      export KUBECONFIG=$(pwd)/.kubeconfig-x
+                      export AAD_SERVICE_PRINCIPAL_CLIENT_ID=$(SP-USER)
+                      export AAD_SERVICE_PRINCIPAL_CLIENT_SECRET=$(SP-PASS)
+                      kubelogin convert-kubeconfig -l spn
+                      kubectl apply -f $(System.ArtifactsDirectory)/kubernetes/configMap.yml
+                      kubectl apply -f $(System.ArtifactsDirectory)/kubernetes/secrets.yml
+                      kubectl apply -f $(System.ArtifactsDirectory)/kubernetes/deployment-delivery.yml 
+                      kubectl apply -f $(System.ArtifactsDirectory)/kubernetes/scaler.yml
+                      kubectl apply -f $(System.ArtifactsDirectory)/kubernetes/networkPolicy.yml
+                      kubectl apply -f $(System.ArtifactsDirectory)/kubernetes/services.yml
+                      kubectl apply -f $(System.ArtifactsDirectory)/kubernetes/ingress.yml
+
+  # - stage: Prod
+  #   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  #   dependsOn: Build
+  #   variables:
+  #     - group: Cluster-Prod
+  #     - group: Peto-BackEnd-Config-Prod
+  #     #- group: Peto-BackEnd-Secrets-Prod
+  #     #- group: Peto-BackEnd-Constr-Prod
+  #   jobs:
+  #     - deployment: Prepare
+  #       environment:
+  #         name: 'AKS Prod'
+  #         resourceType: "VirtualMachine"
+  #       strategy:
+  #         runOnce:
+  #           deploy:
+  #             steps:
+  #               - task: DownloadPipelineArtifact@2
+  #                 displayName: "Download Migration Artifacts"
+  #                 inputs:
+  #                   artifact: MigrationsArtifact
+  #                   path: $(System.ArtifactsDirectory)/migrations
+  #               - task: Bash@3
+  #                 displayName: "Make persisten grant migrations"
+  #                 inputs:
+  #                   targetType: inline
+  #                   script: "sqlcmd -S $(dbserver) -d $(dbnamedelivery) -U $(dbuser) -P '$(dbpassword)' -i $(System.ArtifactsDirectory)/migrations/migrations.sql -I"
+  #                   failOnStderr: true
+  #     - deployment: AKSProd
+  #       dependsOn: Prepare
+  #       environment: 
+  #         name: 'AKS Prod'
+  #         resourceType: 'VirtualMachine'
+  #       variables:
+  #         - group: AKS-PROD
+  #       strategy:
+  #         runOnce:
+  #           deploy:
+  #             steps:
+  #               - task: DownloadPipelineArtifact@2
+  #                 displayName: 'Download Build Artifacts'
+  #                 inputs:
+  #                   artifact: deploy
+  #                   path: $(System.ArtifactsDirectory)
+
+  #               - task: qetza.replacetokens.replacetokens-task.replacetokens@3
+  #                 displayName: 'Replace tokens in **/deply/kube'
+  #                 inputs:
+  #                   targetFiles: |
+  #                     $(System.ArtifactsDirectory)/kubernetes/configMap.yml
+  #                     $(System.ArtifactsDirectory)/kubernetes/secrets.yml
+  #                     $(System.ArtifactsDirectory)/kubernetes/deployment-delivery.yml
+  #                     $(System.ArtifactsDirectory)/kubernetes/scaler.yml
+  #                     $(System.ArtifactsDirectory)/kubernetes/networkPolicy.yml
+  #                     $(System.ArtifactsDirectory)/kubernetes/services.yml
+  #                     $(System.ArtifactsDirectory)/kubernetes/ingress.yml 
+  #                   actionOnMissing: 'warn'
+  #                   tokenPrefix: '#{{'
+  #                   tokenSuffix: '}}#'
+
+  #               - task: Bash@3
+  #                 inputs:
+  #                   targetType: 'inline'
+  #                   script: | 
+  #                     az login --service-principal -u $(SP-USER) -p $(SP-PASS) -t $(SP-TENANT)
+  #                     az aks get-credentials --resource-group $(AKS-RG) --name $(AKS-NAME) --overwrite-existing --file .kubeconfig-x
+  #                     export KUBECONFIG=$(pwd)/.kubeconfig-x
+  #                     export AAD_SERVICE_PRINCIPAL_CLIENT_ID=$(SP-USER)
+  #                     export AAD_SERVICE_PRINCIPAL_CLIENT_SECRET=$(SP-PASS)
+  #                     kubelogin convert-kubeconfig -l spn
+  #                     kubectl apply -f $(System.ArtifactsDirectory)/kubernetes/configMap.yml
+  #                     kubectl apply -f $(System.ArtifactsDirectory)/kubernetes/secrets.yml
+  #                     kubectl apply -f $(System.ArtifactsDirectory)/kubernetes/deployment-delivery.yml 
+  #                     kubectl apply -f $(System.ArtifactsDirectory)/kubernetes/scaler.yml
+  #                     kubectl apply -f $(System.ArtifactsDirectory)/kubernetes/networkPolicy.yml
+  #                     kubectl apply -f $(System.ArtifactsDirectory)/kubernetes/services.yml
+  #                     kubectl apply -f $(System.ArtifactsDirectory)/kubernetes/ingress.yml
+
+  #               # - task: HCLAppScanOnCloud@2
+  #               #   inputs:
+  #               #     AppSecTestService: 'HCL CloudScan'
+  #               #     applications: '223626bc-f5b6-40c7-940b-2aab31465120'
+  #               #     scanname: 'HCL Dynamic Scan Api'
+  #               #     scantype: 'dynamic'
+  #               #     dynamicType: 'DAST'
+  #               #     scanURL: 'https://bkdelivery.sitec.com.bo'
+  #               #     type: 'Production'
+  #               #     loginMethod: 'None'
+  #               #     network: 'public'

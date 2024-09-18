@@ -1,0 +1,24 @@
+#Api
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-conf
+  namespace: "#{{Namespace}}#"
+data:
+  TZ: America/La_Paz
+  ASPNETCORE_ENVIRONMENT: "#{{ASPNETCOREENVIRONMENT}}#"
+  DatabaseName__Delivery: "#{{DatabaseNameDelivery}}#"
+  DatabaseName__Payments: "#{{DatabaseNamePayments}}#"
+  AppiKind: "#{{AppiKind}}#"
+  AppiWorkspaceGroupName: "#{{AppiWorkspaceGroupName}}#"
+  FassilAzureAd__BaseUrl: "#{{FassilAzureAdBaseUrl}}#"
+  FassilAzureAd__ClientId: "#{{FassilAzureAdClientId}}#"
+  FassilAzureAd__TenantId: "#{{FassilAzureAdTenantId}}#"
+  FassilAzureAd__Scope: "#{{FassilAzureAdScope}}#"
+  GoogleMapsConfig__BaseUrl: "#{{GoogleMapsConfigBaseUrl}}#"
+  IdentityProvider__BaseUrl: "#{{IdentityProviderBaseUrl}}#"
+  IdentityProvider__Audience: "#{{IdentityProviderAudience}}#"
+  PaymentsServiceConfig__BaseUrl: "#{{PaymentsServiceConfigBaseUrl}}#"
+  QRServiceConfig__BaseUrl: "#{{QRServiceConfigBaseUrl}}#"
+  TookanCourierConfig__ClientId: "#{{TookanCourierConfigClientId}}#"
+  TookanCourierConfig__BaseUrl: "#{{TookanCourierConfigBaseUrl}}#"

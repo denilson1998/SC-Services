@@ -1,0 +1,156 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"sqlAdministratorLogin": {
+			"value": "value"
+		},
+		"appServiceSku": {
+			"value": "value"
+		},
+		"env": {
+			"value": "value"
+		},
+		"IdentityProvider__BaseUrl": {
+			"value": "value"
+		},
+		"IdentityProvider__Audience": {
+			"value": "value"
+		},
+		"name": {
+			"value": "value"
+		},
+		"Twilio__AccountSid": {
+			"value": "value"
+		},
+		"Twilio__AuthToken": {
+			"value": "value"
+		},
+		"Twilio__VerificationSid": {
+			"value": "value"
+		},
+		"storageAccountName": {
+			"value": "value"
+		},
+		"storageAccountSku": {
+			"value": "value"
+		},
+		"storageAccountAccessTier": {
+			"value": "value"
+		},
+		"Auth0__ApiManagement__ClientId": {
+			"value": "value"
+		},
+		"Auth0__ApiManagement__ClientSecret": {
+			"value": "value"
+		},
+		"Auth0__AuthenticationApi__ClientId": {
+			"value": "value"
+		},
+		"Auth0__AuthenticationApi__ClientSecret": {
+			"value": "value"
+		},
+		"Auth0__AuthenticationApi__Audience": {
+			"value": "value"
+		},
+		"Auth0__SwaggerClientId": {
+			"value": "value"
+		},
+		"Auth0__SwaggerClientSecret": {
+			"value": "value"
+		},
+		"Auth0__SwaggerAppName": {
+			"value": "value"
+		},
+		"Auth0__BaseUrl": {
+			"value": "value"
+		},
+		"Bouncer__ClientId": {
+			"value": "value"
+		},
+		"Bouncer__ClientSecret": {
+			"value": "value"
+		},
+		"Bouncer__Audience": {
+			"value": "value"
+		},
+		"Bouncer__BaseUrl": {
+			"value": "value"
+		},
+		"serviceBusName": {
+			"value": "value"
+		},
+		"CourierConfig__BaseUrl": {
+			"value": "value"
+		},
+		"ConsentServerApiConfig__BaseUrl": {
+			"value": "value"
+		},
+		"OnboardingApiConfig__BaseUrl": {
+			"value": "value"
+		},
+		"SellsApiConfig__BaseUrl": {
+			"value": "value"
+		},
+		"StockApiConfig__BaseUrl": {
+			"value": "value"
+		},
+		"PaymentsApiConfig__BaseUrl": {
+			"value": "value"
+		},
+		"appiWorkspaceName": {
+			"value": "value"
+		},
+		"appiWorkspaceGroupName": {
+			"value": "value"
+		},
+		"appiKind": {
+			"value": "value"
+		},
+		"QRServiceConfig__BaseUrl": {
+			"value": "value"
+		},
+		"Mandrill__ApiKey": {
+			"value": "value"
+		},
+		"Mandrill__From": {
+			"value": "value"
+		},
+		"Mandrill__To": {
+			"value": "value"
+		},
+		"ErpAdminPanelCredentials__Email": {
+			"value": "value"
+		},
+		"ErpAdminPanelCredentials__PasswordHash": {
+			"value": "value"
+		},
+		"AzureAD__BaseUrl": {
+			"value": "value"
+		},
+		"AzureAD__ClientId": {
+			"value": "value"
+		},
+		"AzureAD__TenantId": {
+			"value": "value"
+		},
+		"AzureAD__Scope": {
+			"value": "value"
+		},
+		"GoogleApplicationCredentials": {
+			"value": "value"
+		},
+		"Auth0ApiConfig__BaseUrl":{
+			"value": "value"
+		},
+		"Auth0ApiConfig__ClientSecret":{
+			"value": "value"
+		},
+		"Auth0ApiConfig__ClientId":{
+			"value": "value"
+		},
+		"Auth0ApiConfig__Audience":{
+			"value": "value"
+		}
+	}
+}

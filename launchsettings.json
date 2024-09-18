@@ -1,0 +1,60 @@
+{
+  "profiles": {
+    "Without debugging": {
+      "commandName": "DockerCompose",
+      "commandVersion": "1.0",
+      "composeLaunchAction": "LaunchBrowser",
+      "composeLaunchUrl": "{Scheme}://localhost:{ServicePort}",
+      "serviceActions": {
+        "sqldata": "StartWithoutDebugging",
+        "zipkin": "StartWithoutDebugging",
+        "payments-api": "StartWithoutDebugging",
+        "seq": "StartWithoutDebugging",
+        "redis": "StartWithoutDebugging",
+        "rabbitmq": "StartWithoutDebugging",
+        "delivery-api": "StartWithoutDebugging",
+        "payments-api-dapr": "StartWithoutDebugging",
+        "delivery-api-dapr": "StartWithoutDebugging",
+        "dapr-placement": "StartWithoutDebugging",
+        "backend": "StartWithoutDebugging"
+      }
+    },
+    "With debugging": {
+      "commandName": "DockerCompose",
+      "commandVersion": "1.0",
+      "composeLaunchAction": "LaunchBrowser",
+      "composeLaunchServiceName": "health",
+      "composeLaunchUrl": "{Scheme}://localhost:{ServicePort}",
+      "serviceActions": {
+        "payments-api": "StartDebugging",
+        "zipkin": "StartWithoutDebugging",
+        "seq": "StartWithoutDebugging",
+        "redis": "StartWithoutDebugging",
+        "sqldata": "StartWithoutDebugging",
+        "rabbitmq": "StartWithoutDebugging",
+        "payments-api-dapr": "StartWithoutDebugging",
+        "delivery-api": "StartDebugging",
+        "delivery-api-dapr": "StartWithoutDebugging",
+        "dapr-placement": "StartWithoutDebugging",
+        "backend": "StartWithoutDebugging"
+      }
+    },
+    "MSSQL": {
+      "commandName": "DockerCompose",
+      "commandVersion": "1.0",
+      "serviceActions": {
+        "payments-api": "DoNotStart",
+        "zipkin": "StartWithoutDebugging",
+        "seq": "StartWithoutDebugging",
+        "redis": "StartWithoutDebugging",
+        "sqldata": "StartWithoutDebugging",
+        "rabbitmq": "StartWithoutDebugging",
+        "payments-api-dapr": "StartWithoutDebugging",
+        "delivery-api": "DoNotStart",
+        "delivery-api-dapr": "StartWithoutDebugging",
+        "dapr-placement": "StartWithoutDebugging",
+        "backend": "StartWithoutDebugging"
+      }
+    }
+  }
+}

@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apipayments-deployment
+  namespace: "#{{Namespace}}#"
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: apipayments-deployment
+      app.kubernetes.io/component: apipayments
+      app.kubernetes.io/part-of: "#{{Namespace}}#"
+      app.kubernetes.io/managed-by: azure-acr
+      app.kubernetes.io/created-by: azure-pipelines
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: apipayments-deployment
+        app.kubernetes.io/component: apipayments
+        app.kubernetes.io/part-of: "#{{Namespace}}#"
+        app.kubernetes.io/managed-by: azure-acr
+        app.kubernetes.io/created-by: azure-pipelines
+    spec:
+      automountServiceAccountToken: false
+      securityContext: 
+        seccompProfile:
+          type: RuntimeDefault
+        runAsUser: 1000
+        runAsGroup: 3000
+        fsGroup: 2000
+        supplementalGroups: 
+        - 3300
+      imagePullSecrets:
+        - name: azure-acr
+
+      containers:
+        - name: apipayments-deployment
+          image: "#{{ImageApiPayments}}#"
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: api-conf
+            - secretRef:
+                name: api-secrets
+          resources:
+            limits:
+              memory: #{{MemoryLimits}}#
+              cpu: #{{CpuLimits}}#
+            requests:
+              memory: #{{MemoryRequests}}#
+              cpu: #{{CpuRequests}}#
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+          ports:
+            - containerPort: 8080 

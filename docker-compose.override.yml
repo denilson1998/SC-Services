@@ -1,0 +1,166 @@
+version: '3.4'
+
+services:
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "5379:6379"
+
+  seq:
+    image: datalust/seq:latest
+    environment:
+      - ACCEPT_EULA=Y
+    ports:
+      - "5340:80"
+
+  zipkin:
+    image: openzipkin/zipkin-slim:latest
+    ports:
+      - "5411:9411"
+
+  sqldata:
+    image: mcr.microsoft.com/mssql/server:2019-CU16-GDR1-ubuntu-20.04
+    container_name: sqldata
+    user: root
+    environment:
+      - SA_PASSWORD
+      - ACCEPT_EULA=Y
+      - MSSQL_PID=Developer
+    ports:
+      - "5433:1433"
+    volumes:
+      - peto-sqldata:/var/opt/mssql/data/
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P ${SA_PASSWORD} -Q 'SELECT 1' || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 1s
+
+  payments-api:
+    container_name: payments-api
+    # image: mcr.microsoft.com/dotnet/sdk:7.0
+    image: ${DOCKER_REGISTRY:-scservices}/payments.api:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Payments/Payments.Api/api-dev.dockerfile
+    volumes:
+      - ./src:/app
+    working_dir: /app/Payments/Payments.Api
+    command: dotnet watch run
+    environment:
+      - ASPNETCORE_ENVIRONMENT
+      - ConnectionStrings__petoPayments=${Payments_DB_CONNECTION}
+      - ASPNETCORE_URLS=http://0.0.0.0:80
+      - DOTNET_WATCH_RESTART_ON_RUDE_EDIT=1
+    ports:
+      - "5101:80"
+      - "50004:50005"
+    depends_on:
+      sqldata:
+        condition: service_healthy
+    #  payments-migration:
+    #    condition: service_completed_successfully
+
+  payments-api-dapr:
+    image: "daprio/daprd:1.9.5"
+    command: ["./daprd",
+      "-app-id", "payments-api",
+      "-app-port", "80",
+      "-components-path", "/components",
+      "-config", "/configuration/peto-config.yaml"
+      ]
+    volumes:
+      - "./src/dapr/components/:/components"
+      - "./src/dapr/configuration/:/configuration"
+    network_mode: "service:payments-api"
+    depends_on:
+      - payments-api
+
+  #######################################
+  # Delivery
+  #######################################
+
+  delivery-api:
+    # image: mcr.microsoft.com/dotnet/sdk:7.0
+    container_name: delivery-api
+    image: ${DOCKER_REGISTRY:-scservices}/delivery.api:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Delivery/Delivery.Api/api-dev.dockerfile
+    volumes:
+      - ./src:/app
+    working_dir: /app/Delivery/Delivery.Api
+    command: dotnet watch run
+    environment:
+      - ASPNETCORE_ENVIRONMENT
+      - SeqServerUrl=http://seq
+      - ASPNETCORE_URLS=http://0.0.0.0:80
+      - DOTNET_WATCH_RESTART_ON_RUDE_EDIT=1
+    ports:
+      - "5102:80"
+      - "50002:50001"
+    depends_on:
+      sqldata:
+        condition: service_healthy
+
+
+  delivery-api-dapr:
+    image: "daprio/daprd:1.9.5"
+    command: ["./daprd",
+      "-app-id", "delivery-api",
+      "-app-port", "80",
+      "-components-path", "/components",
+      "-config", "/configuration/peto-config.yaml"
+      ]
+    volumes:
+      - "./src/dapr/components/:/components"
+      - "./src/dapr/configuration/:/configuration"
+    network_mode: "service:delivery-api"
+    depends_on:
+      - delivery-api
+
+
+  #######################################
+  # Dapr
+  #######################################
+
+  dapr-placement:
+    image: "daprio/dapr:1.9.5"
+    command: ["./placement", "-port", "50000", "-log-level", "debug"]
+    ports:
+      - "50000:50000"
+
+  #######################################
+  # Web Status
+  #######################################
+  # webstatus:
+  #   image: ${REGISTRY:-peto}/webstatus:${TAG:-latest}
+  #   build:
+  #     context: .
+  #     dockerfile: src/WebStatus/Dockerfile
+  #   environment:
+  #     - ASPNETCORE_URLS=http://0.0.0.0:80
+  #     - HealthChecksUI__HealthChecks__0__Name=Payments API
+  #     - HealthChecksUI__HealthChecks__0__Uri=http://payments-api/hc
+  #     - HealthChecksUI__HealthChecks__1__Name=Delivery API
+  #     - HealthChecksUI__HealthChecks__1__Uri=http://delivery-api/hc
+
+  #   ports:
+  #     - "5100:80"
+
+
+
+volumes:
+  peto-sqldata:
